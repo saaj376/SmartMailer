@@ -76,7 +76,7 @@ class EmailScheduler:
             schedule_id: Unique identifier for this scheduled email
         """
         if scheduled_time <= datetime.now():
-            self.logger.warning("Scheduled time is in the past. Email will be sent immediately.")
+            self.logger.warning("Scheduled time is in the past. Email will be sent on the next worker cycle.")
         
         # Generate schedule ID if not provided
         if schedule_id is None:
