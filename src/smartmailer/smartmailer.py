@@ -1,7 +1,8 @@
 from smartmailer.core.mailer import MailSender
 from smartmailer.core.template import TemplateEngine
 from smartmailer.session_management.session_manager import SessionManager
-from typing import List
+from typing import List, Optional
+from datetime import datetime
 from smartmailer.utils.new_logger import Logger
 from smartmailer.utils.types import TemplateModelType
 
@@ -97,3 +98,66 @@ class SmartMailer:
         print("Sent Recipients:")
         for entry in sent:
             print(entry)
+    
+    def schedule_emails(
+        self,
+        scheduled_time: datetime,
+        recipients: List[TemplateModelType],
+        email_field: str,
+        template: TemplateEngine,
+        attachment_paths: Optional[List[str]] = None,
+        cc: Optional[List[str]] = None,
+        bcc: Optional[List[str]] = None,
+        cc_field: str = "cc",
+        bcc_field: str = "bcc",
+        attachment_field: str = "attachments",
+        schedule_id: Optional[str] = None
+    ) -> str:
+        """
+        Schedule emails to be sent at a specific time.
+        
+        Args:
+            scheduled_time: When to send the emails
+            recipients: List of recipient objects
+            email_field: Field name containing recipient email
+            template: TemplateEngine instance with subject and body templates
+            attachment_paths: List of attachment file paths
+            cc: List of CC email addresses
+            bcc: List of BCC email addresses
+            cc_field: Field name for CC in recipient object
+            bcc_field: Field name for BCC in recipient object
+            attachment_field: Field name for attachments in recipient object
+            schedule_id: Optional custom ID for this scheduled email
+            
+        Returns:
+            schedule_id: Unique identifier for this scheduled email
+        """
+        from smartmailer.scheduler.scheduler import EmailScheduler
+        
+        scheduler = EmailScheduler()
+        
+        # Prepare template data
+        template_data = {
+            "subject": template.subject,
+            "body_text": template.text,
+            "body_html": template.html
+        }
+        
+        schedule_id = scheduler.schedule_email(
+            scheduled_time=scheduled_time,
+            recipients=recipients,
+            email_field=email_field,
+            template_data=template_data,
+            attachment_paths=attachment_paths,
+            cc=cc,
+            bcc=bcc,
+            cc_field=cc_field,
+            bcc_field=bcc_field,
+            attachment_field=attachment_field,
+            schedule_id=schedule_id
+        )
+        
+        self.logger.info(f"Scheduled emails with ID {schedule_id} for {scheduled_time}")
+        print(f"Scheduled emails with ID {schedule_id} for {scheduled_time}")
+        
+        return schedule_id

@@ -118,3 +118,29 @@ def test_rendering_exception_is_logged_and_skipped(mock_dependencies, dummy_reci
     recipients_arg = mock_mailer.send_bulk_mail.call_args[1]["recipients"]
     assert len(recipients_arg) == 1
     assert recipients_arg[0]["to_email"] == "a@example.com"
+
+def test_schedule_emails_integration(mock_dependencies, dummy_recipients):
+    """Test that schedule_emails method works correctly."""
+    from datetime import datetime, timedelta
+    from smartmailer.core.template import TemplateEngine
+    
+    auto = SmartMailer("sender@example.com", "password", "gmail", "testsession")
+    
+    scheduled_time = datetime.now() + timedelta(hours=1)
+    
+    # Create a template
+    template = TemplateEngine(
+        subject="Test Subject",
+        body_text="Hello {{ email }}"
+    )
+    
+    # Schedule emails
+    schedule_id = auto.schedule_emails(
+        scheduled_time=scheduled_time,
+        recipients=dummy_recipients,
+        email_field="email",
+        template=template
+    )
+    
+    # Verify schedule_id is returned
+    assert schedule_id.startswith("schedule_")

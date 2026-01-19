@@ -1,7 +1,7 @@
 # SmartMailer
 
-SmartMailer is a Python library for sending bulk emails with support for templates, attachments, session management, and logging. It is designed for easy integration into your own projects.
-SmartMailer is a Python library for sending bulk emails with support for templates, attachments, session management, and logging. It is designed for easy integration into your own projects.
+SmartMailer is a Python library for sending bulk emails with support for templates, attachments, session management, scheduling, and logging. It is designed for easy integration into your own projects.
+SmartMailer is a Python library for sending bulk emails with support for templates, attachments, session management, scheduling, and logging. It is designed for easy integration into your own projects.
 
 ## Features
 
@@ -10,6 +10,7 @@ SmartMailer is a Python library for sending bulk emails with support for templat
 - Attachments support
 - CC and BCC support
 - Session management to avoid duplicate sends
+- **Email scheduling** - Schedule emails to be sent at a specific time
 - Logging for all actions
 
 ## Quickstart
