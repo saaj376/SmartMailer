@@ -51,7 +51,7 @@ class EmailScheduler:
         Parse a schedule time string into a datetime object.
         
         Supported formats:
-        - ISO format: "2024-12-25 14:30:00"
+        - ISO format: "2025-12-25 14:30:00"
         - Relative: "+1h", "+30m", "+2d" (hours, minutes, days)
         
         Args:

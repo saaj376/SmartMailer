@@ -51,6 +51,12 @@ class TemplateEngine:
         self.text = body_text
         self.html = body_html
 
+    def _apply_to_templates(self, res: dict, operation) -> None:
+        """Helper to apply an operation to all non-None templates."""
+        for field in ['subject', 'text', 'html']:
+            if res[field]:
+                res[field] = operation(res[field], field)
+    
     def render(self, fields: TemplateModel) -> Dict[str, str]:
         res: dict = {
             "subject": self.subject,
@@ -64,48 +70,39 @@ class TemplateEngine:
         for key, value in field_dict.items():
             conditional_regex = get_conditional_block_regex(key)
             
-            if self.subject:
+            def apply_conditional(template_content, field_name):
                 # If field has a truthy value, keep the content; otherwise remove the block
                 if value:
-                    res["subject"] = conditional_regex.sub(r'\1', res["subject"])
+                    return conditional_regex.sub(r'\1', template_content)
                 else:
-                    res["subject"] = conditional_regex.sub('', res["subject"])
-            if self.text:
-                if value:
-                    res["text"] = conditional_regex.sub(r'\1', res["text"])
-                else:
-                    res["text"] = conditional_regex.sub('', res["text"])
-            if self.html:
-                if value:
-                    res["html"] = conditional_regex.sub(r'\1', res["html"])
-                else:
-                    res["html"] = conditional_regex.sub('', res["html"])
+                    return conditional_regex.sub('', template_content)
+            
+            self._apply_to_templates(res, apply_conditional)
+
+        # Define the replacement function outside the loop
+        def create_default_replacer(value):
+            def replace_with_default(match):
+                default_value = match.group(1)
+                return str(value) if value else default_value
+            return replace_with_default
 
         # Second pass: Handle placeholders with default values
         for key, value in field_dict.items():
             default_regex = get_placeholder_with_default_regex(key)
+            replacer = create_default_replacer(value)
             
-            # If value is None or empty, use the default value; otherwise use the actual value
-            def replace_with_default(match):
-                default_value = match.group(1)
-                return str(value) if value else default_value
+            def apply_default(template_content, field_name):
+                return default_regex.sub(replacer, template_content)
             
-            if self.subject:
-                res["subject"] = default_regex.sub(replace_with_default, res["subject"])
-            if self.text:
-                res["text"] = default_regex.sub(replace_with_default, res["text"])
-            if self.html:
-                res["html"] = default_regex.sub(replace_with_default, res["html"])
+            self._apply_to_templates(res, apply_default)
 
         # Third pass: Handle regular placeholders
         for key, value in field_dict.items():
             regex = get_placeholder_regex(key)
-
-            if self.subject:
-                res["subject"] = regex.sub(str(value), res["subject"])
-            if self.text:
-                res["text"] = regex.sub(str(value), res["text"])
-            if self.html:
-                res["html"] = regex.sub(str(value), res["html"])
+            
+            def apply_placeholder(template_content, field_name):
+                return regex.sub(str(value), template_content)
+            
+            self._apply_to_templates(res, apply_placeholder)
 
         return res
