@@ -195,4 +195,4 @@ cython_debug/
 logs/
 mail_sessions/
 subject.txt
-body.txt
+body.txt*.db

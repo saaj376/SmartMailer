@@ -1,7 +1,8 @@
 import pytest
 import json
+from typing import Optional
 from pydantic import ValidationError
-from smartmailer.core.template import TemplateModel, TemplateEngine, get_placeholder_regex
+from smartmailer.core.template import TemplateModel, TemplateEngine, get_placeholder_regex, get_placeholder_with_default_regex, get_conditional_block_regex
 
 def test_template_model_valid_keys():
     class MyTemplate(TemplateModel):
@@ -85,3 +86,81 @@ def test_template_engine_unmatched_placeholder_remains():
     assert result["subject"] == "Missing: {{ unknown }}"
     assert result["text"] == "Only Bar"
     assert result["html"] == "Also Bar"
+
+def test_template_engine_default_values():
+    """Test template rendering with default values"""
+    class MyTemplate(TemplateModel):
+        name: str
+        nickname: Optional[str] = None
+    
+    fields = MyTemplate(name="John", nickname=None)
+    engine = TemplateEngine(
+        subject="Hello {{ name }}",
+        body_text='Hi {{ nickname|default:"friend" }}, welcome!',
+        body_html='<p>Hello {{ nickname|default:"valued customer" }}</p>'
+    )
+    
+    result = engine.render(fields)
+    assert result["subject"] == "Hello John"
+    assert result["text"] == "Hi friend, welcome!"
+    assert result["html"] == "<p>Hello valued customer</p>"
+
+def test_template_engine_default_values_with_actual_value():
+    """Test that actual values override defaults"""
+    class MyTemplate(TemplateModel):
+        name: str
+        nickname: Optional[str] = None
+    
+    fields = MyTemplate(name="John", nickname="Johnny")
+    engine = TemplateEngine(
+        subject="Hello {{ name }}",
+        body_text='Hi {{ nickname|default:"friend" }}, welcome!',
+    )
+    
+    result = engine.render(fields)
+    assert result["text"] == "Hi Johnny, welcome!"
+
+def test_template_engine_conditional_rendering():
+    """Test conditional blocks in templates"""
+    class MyTemplate(TemplateModel):
+        name: str
+        vip_status: Optional[bool] = None
+    
+    fields = MyTemplate(name="John", vip_status=True)
+    engine = TemplateEngine(
+        body_text='Hello {{ name }}{% if vip_status %}, you are a VIP member!{% endif %}',
+    )
+    
+    result = engine.render(fields)
+    assert result["text"] == "Hello John, you are a VIP member!"
+
+def test_template_engine_conditional_rendering_false():
+    """Test conditional blocks are removed when condition is false"""
+    class MyTemplate(TemplateModel):
+        name: str
+        vip_status: Optional[bool] = None
+    
+    fields = MyTemplate(name="John", vip_status=False)
+    engine = TemplateEngine(
+        body_text='Hello {{ name }}{% if vip_status %}, you are a VIP member!{% endif %}',
+    )
+    
+    result = engine.render(fields)
+    assert result["text"] == "Hello John"
+
+def test_get_placeholder_with_default_regex():
+    """Test regex pattern for placeholders with default values"""
+    pattern = get_placeholder_with_default_regex("field")
+    assert pattern.search('{{ field|default:"value" }}')
+    assert pattern.search('{{ field | default : "value" }}')
+    assert pattern.search('{{field|default:"value"}}')
+    match = pattern.search('{{ field|default:"test value" }}')
+    assert match.group(1) == "test value"
+
+def test_get_conditional_block_regex():
+    """Test regex pattern for conditional blocks"""
+    pattern = get_conditional_block_regex("flag")
+    assert pattern.search('{% if flag %}content{% endif %}')
+    assert pattern.search('{%if flag%}content{%endif%}')
+    match = pattern.search('{% if flag %}VIP content here{% endif %}')
+    assert match.group(1) == "VIP content here"

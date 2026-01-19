@@ -1,7 +1,9 @@
 from smartmailer.core.mailer import MailSender
 from smartmailer.core.template import TemplateEngine
 from smartmailer.session_management.session_manager import SessionManager
-from typing import List
+from smartmailer.utils.scheduler import EmailScheduler
+from typing import List, Optional
+from datetime import datetime
 from smartmailer.utils.new_logger import Logger
 from smartmailer.utils.types import TemplateModelType
 
@@ -34,8 +36,34 @@ class SmartMailer:
         bcc= None,
         cc_field: str = "cc",
         bcc_field: str = "bcc",
-        attachment_field: str = "attachments"
+        attachment_field: str = "attachments",
+        scheduled_time: Optional[datetime] = None
         ):
+        """
+        Send emails to a list of recipients.
+        
+        Args:
+            recipients: List of TemplateModel objects
+            email_field: Name of the field containing the email address
+            template: TemplateEngine with subject and body templates
+            attachment_paths: List of file paths to attach to all emails
+            cc: List of CC email addresses for all emails
+            bcc: List of BCC email addresses for all emails
+            cc_field: Name of the field containing CC addresses in recipient object
+            bcc_field: Name of the field containing BCC addresses in recipient object
+            attachment_field: Name of the field containing attachment paths in recipient object
+            scheduled_time: Optional datetime to schedule email sending
+        """
+        # Handle scheduling
+        if scheduled_time:
+            delay = EmailScheduler.calculate_delay(scheduled_time)
+            if delay > 0:
+                self.logger.info(f"Emails scheduled to send at {scheduled_time} ({delay:.1f} seconds from now)")
+                print(f"Emails scheduled to send at {scheduled_time} ({delay:.1f} seconds from now)")
+                print("Waiting until scheduled time...")
+                EmailScheduler.wait_until(scheduled_time)
+                print("Scheduled time reached. Starting to send emails...")
+        
         all_attachment_paths = attachment_paths or []
         all_cc = cc or []
         all_bcc = bcc or []

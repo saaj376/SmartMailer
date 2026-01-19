@@ -200,3 +200,109 @@ smartmailer.send_emails(
 ```
 
 That's it! Your emails will now include CC, BCC, and any attachments (all file types supported) you specify for each recipient.
+
+## Advanced Template Features
+
+### Template Default Values
+
+SmartMailer now supports default values in templates. This is useful when some recipients may not have all fields populated.
+
+Use the syntax `{{ field|default:"fallback value" }}` to provide a default value:
+
+```python
+from typing import Optional
+
+class MySchema(TemplateModel):
+    name: str
+    nickname: Optional[str] = None
+    email: str
+```
+
+```text
+Dear {{ nickname|default:"valued customer" }},
+
+Thank you for your interest. {{ name }}, we appreciate your business!
+```
+
+If `nickname` is `None` or empty, the template will use "valued customer" instead.
+
+### Conditional Rendering
+
+You can include conditional sections in your templates that only appear when a field has a truthy value.
+
+Use the syntax `{% if field %}content{% endif %}`:
+
+```python
+class MySchema(TemplateModel):
+    name: str
+    vip_status: Optional[bool] = None
+    discount_code: Optional[str] = None
+    email: str
+```
+
+```text
+Dear {{ name }},
+
+Thank you for your order!
+
+{% if vip_status %}
+As a VIP member, you enjoy exclusive benefits and priority support.
+{% endif %}
+
+{% if discount_code %}
+Your discount code is: {{ discount_code }}
+{% endif %}
+
+Best regards,
+The Team
+```
+
+The conditional sections will only be included in the final email if the corresponding field has a truthy value.
+
+## Email Scheduling
+
+SmartMailer now supports scheduling emails to be sent at a specific time in the future.
+
+### Using datetime objects
+
+```python
+from datetime import datetime, timedelta
+
+# Schedule emails to send in 2 hours
+scheduled_time = datetime.now() + timedelta(hours=2)
+
+smartmailer.send_emails(
+    recipients=obj_recipients,
+    email_field="email",
+    template=template,
+    scheduled_time=scheduled_time
+)
+```
+
+### Using the EmailScheduler helper
+
+The `EmailScheduler` utility provides convenient methods for parsing schedule strings:
+
+```python
+from smartmailer import EmailScheduler
+
+# Parse relative time
+scheduled_time = EmailScheduler.parse_schedule_time("+2h")  # 2 hours from now
+scheduled_time = EmailScheduler.parse_schedule_time("+30m")  # 30 minutes from now
+scheduled_time = EmailScheduler.parse_schedule_time("+1d")  # 1 day from now
+
+# Parse ISO format
+scheduled_time = EmailScheduler.parse_schedule_time("2025-12-25 14:30:00")
+
+smartmailer.send_emails(
+    recipients=obj_recipients,
+    email_field="email",
+    template=template,
+    scheduled_time=scheduled_time
+)
+```
+
+When scheduled, the application will wait until the specified time before starting to send emails. This is useful for:
+- Sending emails at optimal times for recipient time zones
+- Coordinating email campaigns with other marketing activities
+- Scheduling announcements to go out at specific times

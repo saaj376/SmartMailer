@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 from pydantic import BaseModel, model_validator, computed_field
 import re
 import json
@@ -6,6 +6,16 @@ import json
 def get_placeholder_regex(key) -> re.Pattern:
     pattern = r"\{\{ *KEY *\}\}".replace("KEY", key)
     return re.compile(pattern)
+
+def get_placeholder_with_default_regex(key) -> re.Pattern:
+    """Matches {{ key|default:"value" }} or {{ key | default : "value" }}"""
+    pattern = r'\{\{ *KEY *\| *default *: *"([^"]*)" *\}\}'.replace("KEY", key)
+    return re.compile(pattern)
+
+def get_conditional_block_regex(key) -> re.Pattern:
+    """Matches {% if key %}...{% endif %}"""
+    pattern = r'\{% *if *KEY *%\}(.*?)\{% *endif *%\}'.replace("KEY", key)
+    return re.compile(pattern, re.DOTALL)
 
 class TemplateModel(BaseModel):
     @model_validator(mode='after')
@@ -48,7 +58,47 @@ class TemplateEngine:
             "html": self.html
         }
 
-        for key, value in fields.model_dump().items():
+        field_dict = fields.model_dump()
+        
+        # First pass: Handle conditional blocks
+        for key, value in field_dict.items():
+            conditional_regex = get_conditional_block_regex(key)
+            
+            if self.subject:
+                # If field has a truthy value, keep the content; otherwise remove the block
+                if value:
+                    res["subject"] = conditional_regex.sub(r'\1', res["subject"])
+                else:
+                    res["subject"] = conditional_regex.sub('', res["subject"])
+            if self.text:
+                if value:
+                    res["text"] = conditional_regex.sub(r'\1', res["text"])
+                else:
+                    res["text"] = conditional_regex.sub('', res["text"])
+            if self.html:
+                if value:
+                    res["html"] = conditional_regex.sub(r'\1', res["html"])
+                else:
+                    res["html"] = conditional_regex.sub('', res["html"])
+
+        # Second pass: Handle placeholders with default values
+        for key, value in field_dict.items():
+            default_regex = get_placeholder_with_default_regex(key)
+            
+            # If value is None or empty, use the default value; otherwise use the actual value
+            def replace_with_default(match):
+                default_value = match.group(1)
+                return str(value) if value else default_value
+            
+            if self.subject:
+                res["subject"] = default_regex.sub(replace_with_default, res["subject"])
+            if self.text:
+                res["text"] = default_regex.sub(replace_with_default, res["text"])
+            if self.html:
+                res["html"] = default_regex.sub(replace_with_default, res["html"])
+
+        # Third pass: Handle regular placeholders
+        for key, value in field_dict.items():
             regex = get_placeholder_regex(key)
 
             if self.subject:
